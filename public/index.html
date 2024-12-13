@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Otimizador de HTML</title>
+    <!-- Link para o arquivo CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+    <!-- Importa o Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full flex items-center justify-center bg-gray-100 py-8">
+    <div class="container mx-auto px-4 max-w-4xl">
+        <div class="bg-white shadow-lg rounded-lg p-8">
+            <h1 class="text-3xl font-bold mb-4 text-center">Otimizador de HTML</h1>
+            
+            <!-- Área de texto para entrada do usuário -->
+            <textarea 
+                id="userInput" 
+                placeholder="Cole seu HTML aqui..." 
+                class="w-full h-48 p-2 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            ></textarea>
+            
+            <div class="flex justify-end mb-4 space-x-2">
+                <!-- Botão para enviar o HTML para otimização -->
+                <button 
+                    onclick="enviarMensagem()" 
+                    id="sendButton"
+                    class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-full transition duration-200"
+                >
+                    Otimizar
+                </button>
+                <!-- Botão para copiar o resultado otimizado -->
+                <button 
+                    onclick="copiarResultado()" 
+                    id="copyButton"
+                    class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-full transition duration-200"
+                >
+                    Copiar
+                </button>
+            </div>
+
+            <!-- Div para exibir mensagens de erro -->
+            <div id="error" class="text-red-500 mb-4 hidden"></div>
+
+            <!-- Indicador de carregamento -->
+            <div id="loadingIndicator" class="hidden">
+                <div class="flex items-center justify-center mb-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                </div>
+            </div>
+
+            <h3 class="text-xl font-bold mb-2 text-center">Resultado:</h3>
+            <!-- Área de texto para exibir o resultado otimizado -->
+            <textarea 
+                id="output" 
+                readonly 
+                class="w-full h-48 p-2 border rounded bg-gray-50"
+            ></textarea>
+        </div>
+    </div>
+
+    <!-- Script principal da página -->
+    <script src="/js/main.js"></script>
+    <script>
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorDiv = document.getElementById('error');
+        const outputArea = document.getElementById('output');
+        const sendButton = document.getElementById('sendButton');
+
+        // Função para enviar o HTML para otimização
+        async function enviarMensagem() {
+            const input = document.getElementById('userInput');
+            const texto = input.value.trim();
+
+            if (!texto) {
+                mostrarErro('Por favor, insira um código HTML');
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden');
+            sendButton.disabled = true;
+            errorDiv.classList.add('hidden');
+            outputArea.value = '';
+
+            try {
+                // Cria uma conexão com o servidor para receber o resultado otimizado
+                const eventSource = new EventSource('/api/perguntar?texto=' + encodeURIComponent(texto));
+                let respostaCompleta = '';
+
+                eventSource.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    respostaCompleta += data.content;
+                    outputArea.value = respostaCompleta;
+                };
+
+                eventSource.onerror = function(error) {
+                    console.error('Erro:', error);
+                    eventSource.close();
+                    loadingIndicator.classList.add('hidden');
+                    sendButton.disabled = false;
+                };
+
+            } catch (error) {
+                mostrarErro('Erro ao processar sua requisição. Por favor, tente novamente.');
+                console.error('Erro:', error);
+                loadingIndicator.classList.add('hidden');
+                sendButton.disabled = false;
+            }
+        }
+
+        // Função para exibir mensagens de erro
+        function mostrarErro(mensagem) {
+            errorDiv.textContent = mensagem;
+            errorDiv.classList.remove('hidden');
+        }
+
+        // Função para copiar o resultado otimizado para a área de transferência
+        function copiarResultado() {
+            if (!outputArea.value) {
+                mostrarErro('Nenhum resultado para copiar');
+                return;
+            }
+
+            outputArea.select();
+            document.execCommand('copy');
+            
+            const copyButton = document.getElementById('copyButton');
+            const originalText = copyButton.textContent;
+            copyButton.textContent = 'Copiado!';
+            copyButton.classList.remove('bg-gray-500');
+            copyButton.classList.add('bg-green-500');
+            
+            setTimeout(() => {
+                copyButton.textContent = originalText;
+                copyButton.classList.remove('bg-green-500');
+                copyButton.classList.add('bg-gray-500');
+            }, 2000);
+        }
+
+        // Adiciona um evento para enviar a mensagem ao pressionar Ctrl + Enter
+        document.getElementById('userInput').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                enviarMensagem();
+            }
+        });
+    </script>
+</body>
+</html>
